@@ -106,6 +106,9 @@ jobs:
           test ! -e /Applications/KwikPaste.app
 
       - name: Style and audit
+        env:
+          # 审计会查 GitHub API；runner 共用出口 IP，匿名请求的额度常被别人用光。
+          HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
