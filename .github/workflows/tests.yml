@@ -1,0 +1,111 @@
+name: Test cask
+
+# 在 Apple 芯片和 Intel 两种 runner 上走一遍用户的完整路径：
+# 装上一个正式版 -> brew upgrade 到 cask 当前版本 -> 连数据一起卸载。
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CASK: mansandadada/tap/kwikpaste
+  CASK_FILE: Casks/kwikpaste.rb
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+  UPSTREAM: ManSanDADADA/KwikPaste
+
+jobs:
+  test:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Apple Silicon
+            os: macos-latest
+          - label: Intel
+            os: macos-15-intel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Tap this checkout
+        run: |
+          set -euo pipefail
+
+          brew update
+          tap_dir="$(brew --repository)/Library/Taps/mansandadada/homebrew-tap"
+          mkdir -p "$(dirname "${tap_dir}")"
+          ln -s "${GITHUB_WORKSPACE}" "${tap_dir}"
+
+          # 之后不再自动 brew update：它会按 origin 重置这个 tap，冲掉下一步对 cask 的临时改动。
+          echo "HOMEBREW_NO_AUTO_UPDATE=1" >> "${GITHUB_ENV}"
+
+      - name: Style and audit
+        run: |
+          set -euo pipefail
+
+          brew style mansandadada/tap
+          brew audit --cask --strict --online "${CASK}"
+
+      - name: Install the previous release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          current="$(sed -n 's/^  version "\(.*\)"$/\1/p' "${CASK_FILE}")"
+          previous="$(gh release list --repo "${UPSTREAM}" --exclude-drafts --exclude-pre-releases --limit 50 \
+            --json tagName --jq "map(.tagName) | .[(index(\"v${current}\") + 1)]")"
+          previous="${previous#v}"
+
+          case "$(uname -m)" in
+            arm64) arch=aarch64 key=arm ;;
+            *) arch=x64 key=intel ;;
+          esac
+
+          curl -fsSL --retry 3 -o previous.dmg \
+            "https://github.com/${UPSTREAM}/releases/download/v${previous}/KwikPaste_${previous}_${arch}.dmg"
+          sha="$(shasum -a 256 previous.dmg | cut -d' ' -f1)"
+          rm previous.dmg
+
+          sed -i '' -E \
+            -e "s/^  version \".*\"$/  version \"${previous}\"/" \
+            -e "s/(${key}: +)\"[0-9a-f]{64}\"/\1\"${sha}\"/" \
+            "${CASK_FILE}"
+
+          brew install --cask "${CASK}"
+          installed="$(defaults read /Applications/KwikPaste.app/Contents/Info.plist CFBundleShortVersionString)"
+          echo "Installed ${installed}"
+          test "${installed}" = "${previous}"
+
+          git checkout -- "${CASK_FILE}"
+          echo "CURRENT_VERSION=${current}" >> "${GITHUB_ENV}"
+
+      - name: Upgrade to the cask version
+        run: |
+          set -euo pipefail
+
+          brew upgrade --cask "${CASK}"
+
+          plist=/Applications/KwikPaste.app/Contents/Info.plist
+          installed="$(defaults read "${plist}" CFBundleShortVersionString)"
+          echo "Upgraded to ${installed}"
+          test "${installed}" = "${CURRENT_VERSION}"
+
+          binary="/Applications/KwikPaste.app/Contents/MacOS/$(defaults read "${plist}" CFBundleExecutable)"
+          file "${binary}"
+          file "${binary}" | grep -q "$(uname -m)"
+
+      - name: Uninstall with zap
+        run: |
+          set -euo pipefail
+
+          brew uninstall --cask --zap "${CASK}"
+          test ! -e /Applications/KwikPaste.app
