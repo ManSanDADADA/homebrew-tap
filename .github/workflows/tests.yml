@@ -1,7 +1,9 @@
 name: Test cask
 
-# 在 Apple 芯片和 Intel 两种 runner 上走一遍用户的完整路径：
-# 装上一个正式版 -> brew upgrade 到 cask 当前版本 -> 连数据一起卸载。
+# 在 Apple 芯片和 Intel 两种 runner 上按 README 的命令走一遍用户的完整路径：
+# 用完整名字装上一个正式版 -> brew upgrade 到 cask 当前版本 -> 连数据一起卸载，最后做样式检查和审计。
+# 用户没有信任过这个 tap（Homebrew 6 起第三方 tap 默认不加载），完整名字安装会只信任这一个 cask，
+# 所以信任 tap 这一步放到最后，前面测的就是新用户的真实情况。
 
 "on":
   push:
@@ -47,13 +49,6 @@ jobs:
           # 之后不再自动 brew update：它会按 origin 重置这个 tap，冲掉下一步对 cask 的临时改动。
           echo "HOMEBREW_NO_AUTO_UPDATE=1" >> "${GITHUB_ENV}"
 
-      - name: Style and audit
-        run: |
-          set -euo pipefail
-
-          brew style mansandadada/tap
-          brew audit --cask --strict --online "${CASK}"
-
       - name: Install the previous release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -92,7 +87,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          brew upgrade --cask "${CASK}"
+          brew upgrade --cask kwikpaste
 
           plist=/Applications/KwikPaste.app/Contents/Info.plist
           installed="$(defaults read "${plist}" CFBundleShortVersionString)"
@@ -107,5 +102,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          brew uninstall --cask --zap "${CASK}"
+          brew uninstall --cask --zap kwikpaste
           test ! -e /Applications/KwikPaste.app
+
+      - name: Style and audit
+        run: |
+          set -euo pipefail
+
+          brew trust mansandadada/tap
+          brew style mansandadada/tap
+          brew audit --cask --strict --online "${CASK}"

@@ -12,6 +12,8 @@ Homebrew cask for [KwikPaste](https://github.com/ManSanDADADA/KwikPaste), a fast
 brew install --cask mansandadada/tap/kwikpaste
 ```
 
+Keep the full name: since Homebrew 6, casks from third-party taps load only when installed by full name or trusted with `brew trust`, and the full-name install trusts this one cask for you.
+
 KwikPaste is not signed with an Apple Developer ID yet, so macOS blocks the first launch. Open **System Settings → Privacy & Security** and click **Open Anyway**.
 
 ### Upgrade
@@ -53,6 +55,8 @@ Pass `-f tag=v1.3.7` to point the cask at a specific tag. GitHub pauses schedule
 ```bash
 brew install --cask mansandadada/tap/kwikpaste
 ```
+
+请照这样写完整名字：从 Homebrew 6 起，第三方 tap 里的 cask 只有按完整名字安装、或者用 `brew trust` 信任过才会加载，按完整名字安装会自动信任这一个 cask。
 
 快贴暂未经过苹果代码签名，首次打开会被系统拦下。打开 **系统设置 → 隐私与安全性**，点 **仍要打开**。
 
