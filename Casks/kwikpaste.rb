@@ -1,9 +1,9 @@
 cask "kwikpaste" do
   arch arm: "aarch64", intel: "x64"
 
-  version "2.0.11"
-  sha256 arm:   "1795c0f9cf6443d8b9f371a9651ad8c66f8dffac8985c51b7b3866f55c0a00c4",
-         intel: "a407e1dc08f1974e2534f8d34a12bdedf8835cbb11b9b62432a86d9a49dc8aa0"
+  version "2.0.12"
+  sha256 arm:   "927c3d07e14c51aad92c0a18add55fb096756533edf34d58e19addaa2967ecb6",
+         intel: "a64ab64b0b4640562c4fd0b5c4b1f8ce1930224640ea7415cc15c05573e928a4"
 
   url "https://github.com/ManSanDADADA/KwikPaste/releases/download/v#{version}/KwikPaste_#{version}_#{arch}.dmg"
   name "KwikPaste"
